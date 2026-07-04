@@ -1,4 +1,4 @@
-_target_: jepa.JEPA
+_target_: lewm.jepa.JEPA
 
 encoder:
   _target_: stable_pretraining.backbone.utils.vit_hf
@@ -9,7 +9,7 @@ encoder:
   use_mask_token: false
 
 predictor:
-  _target_: module.ARPredictor
+  _target_: lewm.module.ARPredictor
   num_frames: ${history_size}
   input_dim: ${embed_dim}
   hidden_dim: ${embed_dim}
@@ -22,12 +22,12 @@ predictor:
   emb_dropout: 0.0
 
 action_encoder:
-  _target_: module.Embedder
+  _target_: lewm.module.Embedder
   input_dim: ???
   emb_dim: ${embed_dim}
 
 projector:
-  _target_: module.MLP
+  _target_: lewm.module.MLP
   input_dim: ${embed_dim}
   output_dim: ${embed_dim}
   hidden_dim: 2048
@@ -36,7 +36,7 @@ projector:
     _partial_: true
 
 pred_proj:
-  _target_: module.MLP
+  _target_: lewm.module.MLP
   input_dim: ${embed_dim}
   output_dim: ${embed_dim}
   hidden_dim: 2048

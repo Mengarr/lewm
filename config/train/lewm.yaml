@@ -37,6 +37,10 @@ num_preds: 1
 
 checkpoint_epoch_interval: 1
 
+compile:
+  enabled: false
+  mode: max-autotune
+
 loss:
   sigreg:
     weight: 0.09

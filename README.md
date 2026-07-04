@@ -77,6 +77,8 @@ python train.py data=pusht
 - Specify model checkpoint interval: `checkpoint_epoch_interval=5` (default=1)
 - Specify number of epochs: `trainer.max_epochs=50` (default=100)
 - Specify batch size: `loader.batch_size` (default=128)
+- Enable torch.compile: `compile.enabled=true` (default=false)
+- Specify compile mode: `compile.mode=max-autotune` (default=max-autotune)
 
 Checkpoints are saved to `$STABLEWM_HOME` upon completion.
 

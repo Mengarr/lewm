@@ -82,6 +82,8 @@ def run(cfg):
     ##############################
 
     world_model = hydra.utils.instantiate(cfg.model)
+    if cfg.compile.enabled:
+        world_model = torch.compile(world_model, mode=cfg.compile.mode)
 
     optimizers = {
         'model_opt': {
