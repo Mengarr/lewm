@@ -10,8 +10,7 @@ import torch
 from lightning.pytorch.loggers import WandbLogger
 from omegaconf import OmegaConf, open_dict
 
-from module import SIGReg
-from utils import get_column_normalizer, get_img_preprocessor, SaveCkptCallback
+from lewm import SIGReg, get_column_normalizer, get_img_preprocessor, SaveCkptCallback
 
 
 def lejepa_forward(self, batch, stage, cfg):

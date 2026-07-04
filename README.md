@@ -31,6 +31,10 @@ This codebase builds on [stable-worldmodel](https://github.com/galilai-group/sta
 
 **Installation:**
 ```bash
+sudo apt install -y swig
+```
+
+```bash
 uv venv --python=3.10
 source .venv/bin/activate
 uv pip install stable-worldmodel[train,env]
@@ -44,12 +48,19 @@ Datasets use the HDF5 format for fast loading. Download the data from [HuggingFa
 tar --zstd -xvf archive.tar.zst
 ```
 
-Place the extracted `.h5` files under `$STABLEWM_HOME` (defaults to `~/.stable-wm/`). You can override this path:
+Place the extracted `.h5` files under `$STABLEWM_HOME/datasets/` (defaults to `~/.stable_worldmodel/datasets/`). You can override the root path:
 ```bash
 export STABLEWM_HOME=/path/to/your/storage
 ```
 
-Dataset names are specified without the `.h5` extension. For example, `config/train/data/pusht.yaml` references `pusht_expert_train`, which resolves to `$STABLEWM_HOME/pusht_expert_train.h5`.
+Dataset names are specified without the extension. For example, `config/train/data/pusht.yaml` references `pusht_expert_train`, which resolves to `$STABLEWM_HOME/datasets/pusht_expert_train.h5`.
+
+The training configs default to `.h5`. If you want to use the faster LanceDB format instead, convert with:
+```python
+from stable_worldmodel.data import convert
+convert('pusht_expert_train.h5', 'pusht_expert_train.lance', dest_format='lance')
+```
+Then update the `name` field in the relevant data config (e.g. `config/train/data/pusht.yaml`) to use the `.lance` suffix.
 
 ## Training
 

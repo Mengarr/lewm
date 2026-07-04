@@ -44,12 +44,13 @@ class JEPA(nn.Module):
 
         return info
 
-    def predict(self, emb, act_emb):
+    def predict(self, emb, act_emb, attn_mask=None):
         """Predict next state embedding
         emb: (B, T, D)
         act_emb: (B, T, A_emb)
+        attn_mask: (T, T) optional boolean mask
         """
-        preds = self.predictor(emb, act_emb)
+        preds = self.predictor(emb, act_emb, attn_mask=attn_mask)
         preds = self.pred_proj(rearrange(preds, "b t d -> (b t) d"))
         preds = rearrange(preds, "(b t) d -> b t d", b=emb.size(0))
         return preds

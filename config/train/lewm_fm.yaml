@@ -1,0 +1,6 @@
+defaults:
+  - lewm  # inherit all base settings
+  - override model: lewm_fm  # override model to FlowJEPA
+  - _self_
+
+output_model_name: lewm_fm

@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lewm"
+version = "0.1.0"
+requires-python = ">=3.10"
+dependencies = [
+    "torch",
+    "lightning",
+    "hydra-core",
+    "omegaconf",
+    "einops",
+    "numpy",
+    "stable-worldmodel[train,env]",
+    "datasets>=2.20.0",
+    "hdf5plugin>=7.0.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]

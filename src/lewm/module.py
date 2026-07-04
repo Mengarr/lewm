@@ -72,15 +72,16 @@ class Attention(nn.Module):
             else nn.Identity()
         )
 
-    def forward(self, x, causal=True):
+    def forward(self, x, attn_mask=None):
         """
         x : (B, T, D)
+        attn_mask: (T, T) boolean mask where True means allowed to attend
         """
         x = self.norm(x)
         drop = self.dropout if self.training else 0.0
         qkv = self.to_qkv(x).chunk(3, dim=-1)  # q, k, v: (B, heads, T, dim_head)
         q, k, v = (rearrange(t, "b t (h d) -> b h t d", h=self.heads) for t in qkv)
-        out = F.scaled_dot_product_attention(q, k, v, dropout_p=drop, is_causal=causal)
+        out = F.scaled_dot_product_attention(q, k, v, attn_mask=attn_mask, dropout_p=drop, is_causal=attn_mask is None)
         out = rearrange(out, "b h t d -> b t (h d)")
         return self.to_out(out)
 
@@ -102,11 +103,11 @@ class ConditionalBlock(nn.Module):
         nn.init.constant_(self.adaLN_modulation[-1].weight, 0)
         nn.init.constant_(self.adaLN_modulation[-1].bias, 0)
 
-    def forward(self, x, c):
+    def forward(self, x, c, attn_mask=None):
         shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = (
             self.adaLN_modulation(c).chunk(6, dim=-1)
         )
-        x = x + gate_msa * self.attn(modulate(self.norm1(x), shift_msa, scale_msa))
+        x = x + gate_msa * self.attn(modulate(self.norm1(x), shift_msa, scale_msa), attn_mask=attn_mask)
         x = x + gate_mlp * self.mlp(modulate(self.norm2(x), shift_mlp, scale_mlp))
         return x
 
@@ -122,8 +123,8 @@ class Block(nn.Module):
         self.norm1 = nn.LayerNorm(dim, elementwise_affine=False, eps=1e-6)
         self.norm2 = nn.LayerNorm(dim, elementwise_affine=False, eps=1e-6)
 
-    def forward(self, x):
-        x = x + self.attn(self.norm1(x))
+    def forward(self, x, attn_mask=None):
+        x = x + self.attn(self.norm1(x), attn_mask=attn_mask)
         x = x + self.mlp(self.norm2(x))
         return x
 
@@ -170,7 +171,7 @@ class Transformer(nn.Module):
                 block_class(hidden_dim, heads, dim_head, mlp_dim, dropout)
             )
 
-    def forward(self, x, c=None):
+    def forward(self, x, c=None, attn_mask=None):
 
         if hasattr(self, "input_proj"):
             x = self.input_proj(x)
@@ -179,7 +180,7 @@ class Transformer(nn.Module):
             c = self.cond_proj(c)
 
         for block in self.layers:
-            x = block(x) if isinstance(block, Block) else block(x, c)
+            x = block(x, attn_mask=attn_mask) if isinstance(block, Block) else block(x, c, attn_mask=attn_mask)
         x = self.norm(x)
 
         if hasattr(self, "output_proj"):
@@ -273,13 +274,14 @@ class ARPredictor(nn.Module):
             block_class=ConditionalBlock,
         )
 
-    def forward(self, x, c):
+    def forward(self, x, c, attn_mask=None):
         """
         x: (B, T, d)
         c: (B, T, act_dim)
+        attn_mask: (T, T) boolean mask where True means allowed to attend
         """
         T = x.size(1)
         x = x + self.pos_embedding[:, :T]
         x = self.dropout(x)
-        x = self.transformer(x, c)
+        x = self.transformer(x, c, attn_mask=attn_mask)
         return x

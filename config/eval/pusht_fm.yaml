@@ -1,0 +1,6 @@
+defaults:
+  - pusht  # inherit all pusht eval settings
+  - _self_
+
+output:
+  filename: pusht_fm_results.txt
