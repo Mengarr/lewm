@@ -1,3 +1,4 @@
+import logging
 import os
 from functools import partial
 from pathlib import Path
@@ -186,6 +187,7 @@ def run(cfg):
     world_model = hydra.utils.instantiate(cfg.model)
     if cfg.compile.enabled:
         world_model = torch.compile(world_model, mode=cfg.compile.mode)
+        logging.info(f"torch.compile enabled (mode={cfg.compile.mode})")
 
     optimizers = {
         'model_opt': {
