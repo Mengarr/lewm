@@ -219,7 +219,7 @@ def run(cfg):
         OmegaConf.save(cfg, f)
 
     object_dump_callback = SaveCkptCallback(
-        run_name=cfg.output_model_name, cfg=cfg.model, epoch_interval=10,
+        run_name=cfg.output_model_name, cfg=cfg.model, epoch_interval=cfg.checkpoint_epoch_interval,
     )
 
     trainer = pl.Trainer(

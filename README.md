@@ -31,13 +31,12 @@ This codebase builds on [stable-worldmodel](https://github.com/galilai-group/sta
 
 **Installation:**
 ```bash
-sudo apt install -y swig
+sudo apt install -y swig python3-dev
 ```
 
 ```bash
-uv venv --python=3.10
-source .venv/bin/activate
-uv pip install stable-worldmodel[train,env]
+cd lewm
+uv sync
 ```
 
 ## Data
@@ -66,18 +65,18 @@ Then update the `name` field in the relevant data config (e.g. `config/train/dat
 
 `jepa.py` contains the PyTorch implementation of LeWM. Training is configured via [Hydra](https://hydra.cc/) config files under `config/train/`.
 
-Before training, set your WandB `entity` and `project` in `config/train/lewm.yaml`:
-```yaml
-wandb:
-  config:
-    entity: your_entity
-    project: your_project
-```
-
 To launch training:
 ```bash
 python train.py data=pusht
 ```
+
+### Additional Config
+- Enable wandb tracking: `wandb.enabled=true` (default=false)
+- Specify wandb entity: `wandb.config.entity=myentity` (default=`lewm`)
+- Specify wandb project: `wandb.config.project=myproject` (default=`lewm`)
+- Specify model checkpoint interval: `checkpoint_epoch_interval=5` (default=1)
+- Specify number of epochs: `trainer.max_epochs=50` (default=100)
+- Specify batch size: `loader.batch_size` (default=128)
 
 Checkpoints are saved to `$STABLEWM_HOME` upon completion.
 

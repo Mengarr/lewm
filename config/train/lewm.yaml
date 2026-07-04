@@ -35,6 +35,8 @@ optimizer:
 
 num_preds: 1
 
+checkpoint_epoch_interval: 1
+
 loss:
   sigreg:
     weight: 0.09
