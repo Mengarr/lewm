@@ -13,6 +13,8 @@ from omegaconf import DictConfig, OmegaConf
 from sklearn import preprocessing
 from torchvision.transforms import v2 as transforms
 import stable_worldmodel as swm
+import lewm  # noqa: F401 — registers FlowJEPA so load_pretrained can reconstruct it
+
 
 def img_transform(cfg):
     transform = transforms.Compose(
@@ -90,8 +92,10 @@ def run(cfg: DictConfig):
         model = model.eval()
         model.requires_grad_(False)
         model.interpolate_pos_encoding = True
+        print(f"JEPA predictor device: {next(model.parameters()).device}")
         config = swm.PlanConfig(**cfg.plan_config)
         solver = hydra.utils.instantiate(cfg.solver, model=model)
+        print(f"CEM solver device: {getattr(solver, 'device', 'n/a')}")
         policy = swm.policy.WorldModelPolicy(
             solver=solver, config=config, process=process, transform=transform
         )

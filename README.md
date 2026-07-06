@@ -84,6 +84,21 @@ Checkpoints are saved to `$STABLEWM_HOME` upon completion.
 
 For baseline scripts, see the stable-worldmodel [scripts](https://github.com/galilai-group/stable-worldmodel/tree/main/scripts/train) folder.
 
+## Decoder (Visualization)
+
+To visualize what the predictor's latent representation looks like as an image, train a lightweight decoder on top of a frozen backbone. The decoder is trained to map the predictor's `z_{t+1}` embedding back to pixels, supervised against the actual next frame.
+
+```bash
+python train_decoder.py data=pusht policy=pusht/lewm
+```
+
+Set `policy` to the checkpoint path **relative to `$STABLEWM_HOME`**, without the `_object.ckpt` suffix — same convention as `eval.py`. The backbone type (LeWM or FlowLeWM) is detected automatically from the checkpoint. The encoder and predictor are frozen throughout; only the decoder is trained.
+
+Enable wandb to log target vs. reconstructed image grids at each validation step:
+```bash
+python train_decoder.py data=pusht policy=pusht/lewm wandb.enabled=true
+```
+
 ## Planning
 
 Evaluation configs live under `config/eval/`. Set the `policy` field to the checkpoint path **relative to `$STABLEWM_HOME`**, without the `_object.ckpt` suffix:

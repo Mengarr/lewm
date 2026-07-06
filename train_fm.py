@@ -27,7 +27,7 @@ def sample_noise(shape, device):
 
 def sample_time(bsize: int, device) -> torch.Tensor:
     # Uses Logit-normal time sampling, setting m<0 pushes probability mass towards low tau
-    m = -0.75
+    m = 0.75
     std = 1.0
     s   = m + std * torch.randn(bsize, device=device)
     tau = torch.sigmoid(s)                            # in (0,1)
