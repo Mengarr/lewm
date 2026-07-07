@@ -42,6 +42,9 @@ projector:
   norm_fn:
     _target_: torch.nn.BatchNorm1d
     _partial_: true
+  output_norm_fn:
+    _target_: torch.nn.LayerNorm
+    _partial_: true
 
 pred_proj:
   _target_: lewm.MLP
