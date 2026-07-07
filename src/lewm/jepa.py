@@ -38,6 +38,8 @@ class JEPA(nn.Module):
         pixels_emb = output.last_hidden_state[:, 0]  # cls token
         emb = self.projector(pixels_emb)
         info["emb"] = rearrange(emb, "(b t) d -> b t d", b=b)
+        if hasattr(self.projector, "last_pre_norm"):
+            info["emb_pre_norm"] = rearrange(self.projector.last_pre_norm, "(b t) d -> b t d", b=b)
 
         if "action" in info:
             info["act_emb"] = self.action_encoder(info["action"])

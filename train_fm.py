@@ -91,6 +91,17 @@ def lejepa_flow_forward(self, batch, stage, cfg):
     emb = output["emb"]  # (batch_size, sequence length from batch, latent dim)
     act_emb = output["act_emb"]
 
+    with torch.no_grad():
+        emb_stats = {
+            f"{stage}/emb_norm_std": emb.std(),
+            f"{stage}/emb_norm_mean_norm": emb.norm(dim=-1).mean(),
+        }
+        if "emb_pre_norm" in output:
+            pre_norm = output["emb_pre_norm"]
+            emb_stats[f"{stage}/emb_pre_norm_std"] = pre_norm.std()
+            emb_stats[f"{stage}/emb_pre_norm_mean_norm"] = pre_norm.norm(dim=-1).mean()
+        self.log_dict(emb_stats, on_step=True, sync_dist=True)
+
     ctx_emb = emb[:, :ctx_len] # (B, T-1, D)
     ctx_act = act_emb[:, : ctx_len] # (B, T-1, D)
 

@@ -229,20 +229,20 @@ class MLP(nn.Module):
     ):
         super().__init__()
         norm_fn = norm_fn(hidden_dim) if norm_fn is not None else nn.Identity()
-        output_norm_fn = output_norm_fn(output_dim or input_dim) if output_norm_fn is not None else nn.Identity()
+        self.output_norm = output_norm_fn(output_dim or input_dim) if output_norm_fn is not None else nn.Identity()
         self.net = nn.Sequential(
             nn.Linear(input_dim, hidden_dim),
             norm_fn,
             act_fn(),
             nn.Linear(hidden_dim, output_dim or input_dim),
-            output_norm_fn,
         )
 
     def forward(self, x):
         """
         x: (B*T, D)
         """
-        return self.net(x)
+        self.last_pre_norm = x = self.net(x)
+        return self.output_norm(x)
 
 
 class ARPredictor(nn.Module):
