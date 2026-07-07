@@ -11,7 +11,7 @@ import torch
 from lightning.pytorch.loggers import WandbLogger
 from omegaconf import OmegaConf, open_dict
 
-from lewm import SIGReg, get_column_normalizer, get_img_preprocessor, SaveCkptCallback
+from lewm import SIGReg, get_column_normalizer, get_img_preprocessor, SaveCkptCallback, EMACallback
 from lewm.time_utils import FREQ_DIM, create_sinusoidal_pos_embedding
 
 
@@ -141,7 +141,8 @@ def lejepa_flow_forward(self, batch, stage, cfg):
     attn_mask[ctx_len:, :ctx_len] = attn_mask[:ctx_len, :ctx_len] 
 
     # adaRMS condition, time_emb.unsqueeze transforms it from (B,D) -> (B,1,D) and then pytorch auto broadcasts along dim 1
-    adarms_cond = torch.cat([ctx_act, tgt_act], dim=1) + time_emb.unsqueeze(1) # (B, (T-1)*2, D)
+    # only the noisy target actions are conditioned on tau; clean context actions are left untouched
+    adarms_cond = torch.cat([ctx_act, tgt_act + time_emb.unsqueeze(1)], dim=1) # (B, (T-1)*2, D)
 
     # predicted velocity, here we have to discard the first three
     v_t = self.model.predict(concat_emb, adarms_cond, attn_mask)[:, ctx_len:] # (B, T-1, D)
@@ -237,9 +238,20 @@ def run(cfg):
         run_name=cfg.output_model_name, cfg=cfg.model, epoch_interval=cfg.checkpoint_epoch_interval,
     )
 
+    callbacks = [object_dump_callback]
+    if cfg.get("ema", {}).get("enabled", False):
+        callbacks.append(
+            EMACallback(
+                run_name=cfg.output_model_name,
+                cfg=cfg.model,
+                decay=cfg.ema.decay,
+                epoch_interval=cfg.checkpoint_epoch_interval,
+            )
+        )
+
     trainer = pl.Trainer(
         **cfg.trainer,
-        callbacks=[object_dump_callback],
+        callbacks=callbacks,
         num_sanity_val_steps=1,
         logger=logger,
         enable_checkpointing=True,

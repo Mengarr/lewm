@@ -26,7 +26,7 @@ def sample_noise(shape, device):
     )
 
 def sample_time(bsize: int, device) -> torch.Tensor:
-    # Uses Logit-normal time sampling, setting m<0 pushes probability mass towards low tau
+    # Uses Logit-normal time sampling, setting m>0 pushes probability mass towards more noisy actions
     m = 0.75
     std = 1.0
     s   = m + std * torch.randn(bsize, device=device)
@@ -130,7 +130,7 @@ def lejepa_flow_forward(self, batch, stage, cfg):
     attn_mask[ctx_len:, :ctx_len] = attn_mask[:ctx_len, :ctx_len] 
 
     # adaRMS condition, time_emb.unsqueeze transforms it from (B,D) -> (B,1,D) and then pytorch auto broadcasts along dim 1
-    adarms_cond = torch.cat([ctx_act, tgt_act], dim=1) + time_emb.unsqueeze(1) # (B, (T-1)*2, D)
+    adarms_cond = torch.cat([ctx_act, tgt_act + time_emb.unsqueeze(1)], dim=1) # (B, (T-1)*2, D)
 
     # predicted velocity, here we have to discard the first three
     v_t = self.model.predict(concat_emb, adarms_cond, attn_mask)[:, ctx_len:] # (B, T-1, D)

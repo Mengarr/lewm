@@ -40,7 +40,6 @@ class FlowJEPA(JEPA):
 
         x_t = torch.randn(B, 1, D, device=device, dtype=ctx_emb.dtype)
         mask = self._build_inference_mask(ctx_len, device)
-        adarms_base = torch.cat([ctx_act, next_act_emb], dim=1)  # (B, ctx_len+1, D)
 
         dt = 1.0 / self.n_euler_steps
         for i in range(self.n_euler_steps):
@@ -49,7 +48,8 @@ class FlowJEPA(JEPA):
             time_emb = self._embed_time(batched_tau)  # (B, D)
 
             concat_emb = torch.cat([ctx_emb, x_t], dim=1)          # (B, ctx_len+1, D)
-            adarms_cond = adarms_base + time_emb.unsqueeze(1)       # (B, ctx_len+1, D)
+            # only the noisy target action is conditioned on tau; clean context actions are left untouched
+            adarms_cond = torch.cat([ctx_act, next_act_emb + time_emb.unsqueeze(1)], dim=1)  # (B, ctx_len+1, D)
 
             v_t = self.predict(concat_emb, adarms_cond, attn_mask=mask)[:, ctx_len:]  # (B, 1, D)
             x_t = x_t - dt * v_t

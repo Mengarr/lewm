@@ -4,3 +4,7 @@ defaults:
   - _self_
 
 output_model_name: lewm_fm
+
+ema:
+  enabled: true
+  decay: 0.999
