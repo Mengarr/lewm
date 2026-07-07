@@ -14,8 +14,46 @@ from lightning.pytorch.loggers import WandbLogger
 from omegaconf import OmegaConf, open_dict
 
 import lewm  # noqa: F401 — registers FlowJEPA so load_pretrained can reconstruct it
-from lewm import FlowJEPA, get_img_preprocessor, get_column_normalizer, SaveCkptCallback
+from lewm import FlowJEPA, get_img_preprocessor, get_column_normalizer, SaveCkptCallback, GridSaveCallback
 from lewm.decoder import CLSDecoder
+
+
+def _predict_pred_emb(model, ctx_emb, ctx_act, next_act_emb):
+    """Predict the embedding one step ahead of an arbitrary-length context.
+
+    ctx_emb/ctx_act: (B, k, D). next_act_emb: (B, 1, D). Returns (B, D).
+    """
+    if isinstance(model.jepa, FlowJEPA):
+        pred = model.jepa._flow_predict_one_step(ctx_emb, ctx_act, next_act_emb)
+        return pred[:, 0]
+    else:
+        pred = model.jepa.predict(ctx_emb, ctx_act)
+        return pred[:, -1]
+
+
+def compute_grid_predictions(model, batch, cfg):
+    """Decode reconstructions from varying context lengths (1, 2, 3) against
+    the same fixed target frame, for the grid-visualization callback."""
+
+    ctx_len = cfg.history_size
+    batch["action"] = torch.nan_to_num(batch["action"], 0.0)
+
+    with torch.no_grad():
+        output = model.jepa.encode(batch)
+        emb = output["emb"]
+        act_emb = output["act_emb"]
+        next_act_emb = act_emb[:, ctx_len: ctx_len + 1]
+
+        recons = {}
+        for k in (1, 2, 3):
+            ctx_emb = emb[:, ctx_len - k: ctx_len]
+            ctx_act = act_emb[:, ctx_len - k: ctx_len]
+            pred_emb = _predict_pred_emb(model, ctx_emb, ctx_act, next_act_emb)
+            recons[k] = model.decoder(pred_emb)
+
+    tgt_pixels = batch["pixels"][:, ctx_len].float()
+    recons["target"] = tgt_pixels * 2.0 - 1.0
+    return recons
 
 
 def decoder_forward(self, batch, stage, cfg):
@@ -32,14 +70,8 @@ def decoder_forward(self, batch, stage, cfg):
 
         ctx_emb = emb[:, :ctx_len]
         ctx_act = act_emb[:, :ctx_len]
-
-        if isinstance(self.model.jepa, FlowJEPA):
-            next_act_emb = act_emb[:, ctx_len: ctx_len + 1]  # (B, 1, D)
-            pred_emb = self.model.jepa._flow_predict_one_step(ctx_emb, ctx_act, next_act_emb)
-            pred_emb = pred_emb[:, 0]                         # (B, D)
-        else:
-            pred_emb = self.model.jepa.predict(ctx_emb, ctx_act)  # (B, ctx_len, D)
-            pred_emb = pred_emb[:, -1]                            # (B, D)
+        next_act_emb = act_emb[:, ctx_len: ctx_len + 1]  # (B, 1, D)
+        pred_emb = _predict_pred_emb(self.model, ctx_emb, ctx_act, next_act_emb)
 
     recon = self.model.decoder(pred_emb)   # (B, 3, H, W)
 
@@ -121,6 +153,11 @@ def run(cfg):
     train = torch.utils.data.DataLoader(train_set, **cfg.loader, shuffle=True, drop_last=True, generator=rnd_gen)
     val   = torch.utils.data.DataLoader(val_set,   **cfg.loader, shuffle=False, drop_last=False)
 
+    sample_gen = torch.Generator().manual_seed(cfg.seed)
+    fixed_indices = torch.randperm(len(val_set), generator=sample_gen)[:3].tolist()
+    fixed_samples = [val_set[i] for i in fixed_indices]
+    fixed_batch = torch.utils.data.default_collate(fixed_samples)
+
     ##############################
     ##       model / optim      ##
     ##############################
@@ -168,9 +205,18 @@ def run(cfg):
         epoch_interval=cfg.checkpoint_epoch_interval,
     )
 
+    grid_callback = GridSaveCallback(
+        fixed_batch=fixed_batch,
+        cfg=cfg,
+        predict_fn=compute_grid_predictions,
+        output_dir=run_dir,
+        epoch_interval=cfg.grid_save.epoch_interval,
+        log_wandb=cfg.wandb.enabled,
+    )
+
     trainer = pl.Trainer(
         **cfg.trainer,
-        callbacks=[ckpt_callback],
+        callbacks=[ckpt_callback, grid_callback],
         num_sanity_val_steps=1,
         logger=logger,
         enable_checkpointing=True,

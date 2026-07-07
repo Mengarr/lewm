@@ -31,7 +31,7 @@ This codebase builds on [stable-worldmodel](https://github.com/galilai-group/sta
 
 **Installation:**
 ```bash
-sudo apt install -y swig python3-dev
+sudo apt install -y swig python3-dev zstd
 ```
 
 ```bash
@@ -44,7 +44,7 @@ uv sync
 Datasets use the HDF5 format for fast loading. Download the data from [HuggingFace](https://huggingface.co/collections/quentinll/lewm) and decompress with:
 
 ```bash
-tar --zstd -xvf archive.tar.zst
+zstd -d archive.tar.zst
 ```
 
 Place the extracted `.h5` files under `$STABLEWM_HOME/datasets/` (defaults to `~/.stable_worldmodel/datasets/`). You can override the root path:
@@ -89,14 +89,18 @@ For baseline scripts, see the stable-worldmodel [scripts](https://github.com/gal
 To visualize what the predictor's latent representation looks like as an image, train a lightweight decoder on top of a frozen backbone. The decoder is trained to map the predictor's `z_{t+1}` embedding back to pixels, supervised against the actual next frame.
 
 ```bash
-python train_decoder.py data=pusht policy=pusht/lewm
+# Standard LeWM
+python train_decoder.py data=pusht backbone_checkpoint=/path/to/lewm_weights.pt
+
+# Flow-matching LeWM
+python train_decoder.py --config-name=decoder_fm data=pusht backbone_checkpoint=/path/to/lewm_fm_weights.pt
 ```
 
-Set `policy` to the checkpoint path **relative to `$STABLEWM_HOME`**, without the `_object.ckpt` suffix — same convention as `eval.py`. The backbone type (LeWM or FlowLeWM) is detected automatically from the checkpoint. The encoder and predictor are frozen throughout; only the decoder is trained.
+Set `backbone_checkpoint` to the `_weight.ckpt` (state dict) file for your environment. The encoder and predictor are frozen throughout; only the decoder is trained.
 
 Enable wandb to log target vs. reconstructed image grids at each validation step:
 ```bash
-python train_decoder.py data=pusht policy=pusht/lewm wandb.enabled=true
+python train_decoder.py data=pusht backbone_checkpoint=... wandb.enabled=true
 ```
 
 ## Planning

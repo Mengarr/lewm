@@ -52,6 +52,7 @@ class SaveCkptCallback(Callback):
 
     def _save(self, model, epoch):
         from stable_worldmodel.wm.utils import save_pretrained
+        model = getattr(model, '_orig_mod', model)
         save_pretrained(
             model,
             run_name=self.run_name,

@@ -19,6 +19,9 @@ policy: null
 
 checkpoint_epoch_interval: 1
 
+grid_save:
+  epoch_interval: 1
+
 decoder:
   cls_dim: ${embed_dim}
   hidden_dim: 256

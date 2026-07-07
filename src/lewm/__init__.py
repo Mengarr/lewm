@@ -3,6 +3,7 @@ from lewm.jepa_fm import FlowJEPA
 from lewm.module import SIGReg, ARPredictor, Transformer, Embedder, MLP
 from lewm.utils import get_column_normalizer, get_img_preprocessor, SaveCkptCallback
 from lewm.decoder import CLSDecoder
+from lewm.grid_viz import GridSaveCallback
 
 __all__ = [
     "JEPA",
@@ -16,4 +17,5 @@ __all__ = [
     "get_column_normalizer",
     "get_img_preprocessor",
     "SaveCkptCallback",
+    "GridSaveCallback",
 ]
