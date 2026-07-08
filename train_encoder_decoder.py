@@ -17,6 +17,17 @@ import lewm  # noqa: F401 — registers FlowJEPA so load_pretrained can reconstr
 from lewm import get_img_preprocessor, get_column_normalizer, SaveCkptCallback, GridSaveCallback
 from lewm.decoder import CLSDecoder
 
+# get_img_preprocessor ImageNet-normalizes `pixels`; undo it to recover [0, 1].
+_IMAGENET_MEAN = torch.tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1)
+_IMAGENET_STD = torch.tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1)
+
+
+def _denorm_to_unit(pixels):
+    """ImageNet-normalized pixels (B, C, H, W) -> [0, 1]."""
+    mean = _IMAGENET_MEAN.to(pixels.device, pixels.dtype)
+    std = _IMAGENET_STD.to(pixels.device, pixels.dtype)
+    return (pixels * std + mean).clamp(0, 1)
+
 
 def compute_grid_predictions(model, batch, cfg):
     """Decode the encoder's own [CLS] embedding for a single frame and compare
@@ -30,7 +41,7 @@ def compute_grid_predictions(model, batch, cfg):
         emb = output["emb"][:, ctx_len - 1]  # (B, D)
         recon = model.decoder(emb)
 
-    tgt_pixels = batch["pixels"][:, ctx_len - 1].float()
+    tgt_pixels = _denorm_to_unit(batch["pixels"][:, ctx_len - 1].float())
     return {"target": tgt_pixels * 2.0 - 1.0, "recon": recon}
 
 
@@ -48,8 +59,10 @@ def decoder_forward(self, batch, stage, cfg):
     cls_emb = emb[:, ctx_len - 1]  # (B, D)
     recon = self.model.decoder(cls_emb)   # (B, 3, H, W)
 
-    # Target: the same frame the [CLS] embedding was encoded from
-    tgt_pixels = batch["pixels"][:, ctx_len - 1].float()  # (B, C, H, W)
+    # Target: the same frame the [CLS] embedding was encoded from.
+    # `pixels` are ImageNet-normalized by the preprocessor; undo that to [0, 1]
+    # before mapping to [-1, 1] so it matches the decoder's tanh output range.
+    tgt_pixels = _denorm_to_unit(batch["pixels"][:, ctx_len - 1].float())  # (B, C, H, W)
     target = tgt_pixels * 2.0 - 1.0
 
     loss = F.mse_loss(recon, target)
@@ -58,7 +71,7 @@ def decoder_forward(self, batch, stage, cfg):
     self.log_dict({f"{stage}/{k}": v.detach() for k, v in output_dict.items()}, on_step=True, sync_dist=True)
 
     if stage == "val" and cfg.wandb.enabled:
-        _log_images(self, tgt_pixels, recon, stage)
+        _log_images(self, target, recon, stage)
 
     return output_dict
 
