@@ -27,7 +27,7 @@ decoder:
   base_dim: 512
   init_size: 7
   img_size: ${img_size}
-  ch_mult: [1, 1, 1, 1, 2, 2]
+  ch_mult: [1, 2, 4, 8, 16]
 
 trainer:
   max_epochs: 10
