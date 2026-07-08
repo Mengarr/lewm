@@ -10,7 +10,7 @@ def _to_imshow(x):
 
 
 class GridSaveCallback(Callback):
-    """Saves a 3x4 PNG grid (rows=fixed val samples, cols=[target, h=1, h=2, h=3])
+    """Saves a PNG grid (rows=fixed val samples, cols=[target, ...predict_fn's other keys])
     every epoch_interval epochs."""
 
     def __init__(self, fixed_batch, cfg, predict_fn, output_dir, epoch_interval: int = 1, log_wandb: bool = False):
@@ -50,11 +50,15 @@ class GridSaveCallback(Callback):
         plt.close(fig)
 
     def _build_figure(self, preds):
-        col_titles = ["target", "history=1", "history=2", "history=3"]
-        cols = [preds["target"], preds[1], preds[2], preds[3]]
+        other_keys = [k for k in preds if k != "target"]
+        col_titles = ["target"] + [f"history={k}" if isinstance(k, int) else str(k) for k in other_keys]
+        cols = [preds["target"]] + [preds[k] for k in other_keys]
+        n_cols = len(cols)
         n_rows = cols[0].size(0)
 
-        fig, axes = plt.subplots(n_rows, 4, figsize=(4 * 2.5, n_rows * 2.5))
+        fig, axes = plt.subplots(n_rows, n_cols, figsize=(n_cols * 2.5, n_rows * 2.5))
+        if n_rows == 1:
+            axes = axes.reshape(1, n_cols)
         for row in range(n_rows):
             for col_idx, col in enumerate(cols):
                 ax = axes[row, col_idx]

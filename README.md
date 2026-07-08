@@ -86,21 +86,27 @@ For baseline scripts, see the stable-worldmodel [scripts](https://github.com/gal
 
 ## Decoder (Visualization)
 
-To visualize what the predictor's latent representation looks like as an image, train a lightweight decoder on top of a frozen backbone. The decoder is trained to map the predictor's `z_{t+1}` embedding back to pixels, supervised against the actual next frame.
+To visualize what the latent representation looks like as an image, train a lightweight decoder on top of a frozen backbone. Two variants are available:
+
+- `train_predictor_decoder.py` — decodes the predictor's `z_{t+1}` embedding back to pixels, supervised against the actual next frame.
+- `train_encoder_decoder.py` — decodes the encoder's own `[CLS]` embedding back to pixels, supervised against the frame it was encoded from. This is the diagnostic decoder described in the paper, used to visualize what visual information is retained in the `[CLS]` representation.
 
 ```bash
 # Standard LeWM
-python train_decoder.py data=pusht backbone_checkpoint=/path/to/lewm_weights.pt
+python train_predictor_decoder.py data=pusht backbone_checkpoint=/path/to/lewm_weights.pt
 
 # Flow-matching LeWM
-python train_decoder.py --config-name=decoder_fm data=pusht backbone_checkpoint=/path/to/lewm_fm_weights.pt
+python train_predictor_decoder.py --config-name=decoder_fm data=pusht backbone_checkpoint=/path/to/lewm_fm_weights.pt
+
+# Encoder-only [CLS] decoder
+python train_encoder_decoder.py data=pusht backbone_checkpoint=/path/to/lewm_weights.pt
 ```
 
 Set `backbone_checkpoint` to the `_weight.ckpt` (state dict) file for your environment. The encoder and predictor are frozen throughout; only the decoder is trained.
 
 Enable wandb to log target vs. reconstructed image grids at each validation step:
 ```bash
-python train_decoder.py data=pusht backbone_checkpoint=... wandb.enabled=true
+python train_predictor_decoder.py data=pusht backbone_checkpoint=... wandb.enabled=true
 ```
 
 ## Planning
