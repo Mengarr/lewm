@@ -56,6 +56,66 @@ class DecoderBlock(nn.Module):
         return q
 
 
+class ConvDecoder(nn.Module):
+    """Decodes the CLS token into an image with a convolutional upsampling stack.
+
+    Unlike CLSDecoder (per-patch tokens + linear head, which produces patch
+    seams and blur), this projects the global CLS vector to a small spatial
+    grid and upsamples with convolutions. Convolutions are spatially coherent
+    by construction, so there are no patch boundaries and low-complexity shapes
+    render sharply. Interface matches CLSDecoder: (B, cls_dim) -> (B, 3, H, W)
+    in [-1, 1].
+    """
+
+    def __init__(
+        self,
+        cls_dim: int = 192,
+        base_dim: int = 512,
+        init_size: int = 7,
+        img_size: int = 224,
+        ch_mult=(1, 1, 1, 1, 2, 2),
+        **_ignored,
+    ):
+        super().__init__()
+        self.img_size = img_size
+        self.init_size = init_size
+
+        # number of 2x upsamples needed to go init_size -> img_size
+        n_up = 0
+        s = init_size
+        while s < img_size:
+            s *= 2
+            n_up += 1
+        assert s == img_size, f"img_size {img_size} must be init_size {init_size} * 2^k"
+        assert len(ch_mult) >= n_up, f"need >= {n_up} entries in ch_mult"
+
+        self.proj = nn.Linear(cls_dim, base_dim * init_size * init_size)
+        self.base_dim = base_dim
+
+        chans = [max(base_dim // m, 32) for m in ch_mult[:n_up]]
+        layers = []
+        in_c = base_dim
+        for out_c in chans:
+            layers += [
+                nn.Upsample(scale_factor=2, mode="nearest"),
+                nn.Conv2d(in_c, out_c, 3, padding=1),
+                nn.GroupNorm(min(32, out_c), out_c),
+                nn.SiLU(),
+                nn.Conv2d(out_c, out_c, 3, padding=1),
+                nn.GroupNorm(min(32, out_c), out_c),
+                nn.SiLU(),
+            ]
+            in_c = out_c
+        self.up = nn.Sequential(*layers)
+        self.to_rgb = nn.Conv2d(in_c, 3, 3, padding=1)
+
+    def forward(self, cls_emb: torch.Tensor) -> torch.Tensor:
+        B = cls_emb.size(0)
+        x = self.proj(cls_emb).view(B, self.base_dim, self.init_size, self.init_size)
+        x = self.up(x)
+        return torch.tanh(self.to_rgb(x))
+
+
 class CLSDecoder(nn.Module):
     """Decodes the CLS token into a reconstructed image for visualization.
 

@@ -1,0 +1,55 @@
+defaults:
+  - _self_
+  - launcher: local
+  - data: pusht
+
+output_model_name: encoder_decoder_conv
+subdir: ${hydra:job.id}
+
+num_workers: 6
+train_split: 0.9
+seed: 3072
+img_size: 224
+embed_dim: 192
+history_size: 3
+num_preds: 1
+
+# Checkpoint path relative to $STABLEWM_HOME, without the _object.ckpt suffix
+policy: null
+
+checkpoint_epoch_interval: 1
+
+grid_save:
+  epoch_interval: 1
+
+decoder:
+  cls_dim: ${embed_dim}
+  base_dim: 512
+  init_size: 7
+  img_size: ${img_size}
+  ch_mult: [1, 1, 1, 1, 2, 2]
+
+trainer:
+  max_epochs: 10
+  devices: auto
+  accelerator: gpu
+  precision: bf16
+  gradient_clip_val: 1.0
+
+loader:
+  batch_size: 128
+  num_workers: ${num_workers}
+  persistent_workers: True
+  prefetch_factor: 3
+  pin_memory: True
+
+optimizer:
+  type: AdamW
+  lr: 1e-3
+  weight_decay: 1e-3
+
+wandb:
+  enabled: false
+  config:
+    project: le-wm
+    name: encoder_decoder_conv
